@@ -1,0 +1,39 @@
+{
+  "project_info": {
+    "project_number": "552450916061",
+    "project_id": "geolocation-a920f",
+    "storage_bucket": "geolocation-a920f.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:552450916061:android:73115b276c5f050f1d6534",
+        "android_client_info": {
+          "package_name": "com.example.geolocation"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "552450916061-p9i51c0kvo2ib0e6cau4i30088pc1tn5.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDpfU35fk4C6Iz-roy1zAuY-VXHAfJ3o64"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "552450916061-p9i51c0kvo2ib0e6cau4i30088pc1tn5.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
