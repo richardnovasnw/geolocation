@@ -37,128 +37,147 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
-  late Position locat;
+  late Position latlng;
+  String gHash = '';
+  String ll = '';
 
   @override
   void initState() {
     super.initState();
     getUserLocation();
+    _hash();
   }
 
   getUserLocation() async {
     final Position pos = await GeolocatorPlatform.instance
         .getCurrentPosition(desiredAccuracy: LocationAccuracy.high);
     setState(() {
-      locat = pos;
-      print(locat);
+      latlng = pos;
     });
   }
 
-  final TextEditingController _controller = TextEditingController();
-  String gHash = '';
+  TextEditingController _controller = TextEditingController();
+
+  _hash() {
+    Geolocator.getPositionStream(
+            desiredAccuracy: LocationAccuracy.high,
+            forceAndroidLocationManager: true)
+        .listen((Position position) {
+      setState(() {
+        gHash = GeoHash.fromDecimalDegrees(
+                position.longitude, position.latitude,
+                precision: 9)
+            .geohash;
+        ll = '${position.latitude},${position.longitude}';
+      });
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(''),
+        backgroundColor: Colors.black,
+        title: const Text('Location'),
       ),
-      body: StreamBuilder<QuerySnapshot>(
-        stream: FirebaseFirestore.instance.collectionGroup('user').snapshots(),
-        builder: (context, snapshot) {
-          return snapshot.hasData
-              ? ListView(
-                  children:
-                      snapshot.data!.docs.map((DocumentSnapshot document) {
-                  Map<String, dynamic> data =
-                      document.data()! as Map<String, dynamic>;
+      body: SingleChildScrollView(
+        child: Column(
+          children: [
+            Text('Current GeoHash : $gHash'),
+            Text('Current LatLng : $ll'),
+            StreamBuilder<QuerySnapshot>(
+              stream: FirebaseFirestore.instance
+                  .collectionGroup('user')
+                  .snapshots(),
+              builder: (context, snapshot) {
+                return snapshot.hasData
+                    ? ListView(
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        children: snapshot.data!.docs
+                            .map((DocumentSnapshot document) {
+                          Map<String, dynamic> data =
+                              document.data()! as Map<String, dynamic>;
 
-                  Geolocator.getPositionStream().listen((Position position) {
-                    print(position == null
-                        ? 'Unknown'
-                        : position.latitude.toString() +
-                            ', ' +
-                            position.longitude.toString());
-
-                    setState(() {
-                      gHash = GeoHash.fromDecimalDegrees(
-                              position.longitude, position.latitude)
-                          .geohash;
-                    });
-                  });
-                  print('hhh $gHash');
-                  return Padding(
-                    padding: const EdgeInsets.all(8.0),
-                    child: Card(
-                      color:
-                          gHash == data['hash'] ? Colors.green : Colors.white,
-                      child: ListTile(
-                        title: Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 8.0),
-                          child: Text(data['place']),
-                        ),
-                        subtitle: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                                'latitude : ${data['geoLocation'].latitude}, longitude : ${data['geoLocation'].longitude}'),
-                            Text('hash : ${data['hash']}')
-                          ],
-                        ),
-                      ),
-                    ),
-                  );
-                }).toList())
-              : Center(child: CircularProgressIndicator());
-        },
+                          return Padding(
+                            padding: const EdgeInsets.all(8.0),
+                            child: Card(
+                              color: gHash == data['hash']
+                                  ? Colors.green
+                                  : Colors.white,
+                              child: ListTile(
+                                title: Padding(
+                                  padding:
+                                      const EdgeInsets.symmetric(vertical: 8.0),
+                                  child: Text(data['place']),
+                                ),
+                                subtitle: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                        'latitude : ${data['geoLocation'].latitude}, longitude : ${data['geoLocation'].longitude}'),
+                                    Text('hash : ${data['hash']}')
+                                  ],
+                                ),
+                              ),
+                            ),
+                          );
+                        }).toList())
+                    : const Center(child: CircularProgressIndicator());
+              },
+            ),
+          ],
+        ),
       ),
       floatingActionButton: FloatingActionButton(
+        backgroundColor: Colors.black,
         onPressed: () {
-          showModalBottomSheet(
+          showDialog(
               context: context,
               builder: (context) {
-                return BottomSheet(
-                  builder: (context) {
-                    return Container(
-                        child: Column(
-                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                      children: [
-                        TextFormField(
-                          validator: (t) {
-                            if (t == null) {
-                              print('object');
-                            }
+                return AlertDialog(
+                    actions: [
+                      ElevatedButton(
+                          style: ButtonStyle(
+                              backgroundColor:
+                                  MaterialStateProperty.all(Colors.black)),
+                          onPressed: () {
+                            _controller.value.text.isNotEmpty
+                                ? FirebaseFirestore.instance
+                                    .collection('user')
+                                    .doc()
+                                    .set({
+                                    'place': _controller.value.text,
+                                    'geoLocation': GeoPoint(
+                                        latlng.latitude, latlng.longitude),
+                                    'hash': GeoHash.fromDecimalDegrees(
+                                            latlng.longitude, latlng.latitude,
+                                            precision: 9)
+                                        .geohash
+                                  }).then((value) {
+                                    _controller.clear();
+                                    Navigator.pop(context);
+                                  })
+                                : _error();
                           },
-                          controller: _controller,
-                        ),
-                        ElevatedButton(
-                            onPressed: () {
-                              _controller.text.isEmpty
-                                  ? ScaffoldMessenger.of(context).showSnackBar(
-                                      SnackBar(content: Text('Add Place')))
-                                  : FirebaseFirestore.instance
-                                      .collection('user')
-                                      .doc()
-                                      .set({
-                                      'place': _controller.text,
-                                      'geoLocation': GeoPoint(
-                                          locat.latitude, locat.longitude),
-                                      'hash': GeoHash.fromDecimalDegrees(
-                                              locat.longitude, locat.latitude)
-                                          .geohash
-                                    }).then((value) => Navigator.pop(context));
-                              _controller.clear();
-                            },
-                            child: Text('Post'))
-                      ],
+                          child: const Text('Post'))
+                    ],
+                    content: TextFormField(
+                      decoration: InputDecoration(
+                          border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(10))),
+                      controller: _controller,
                     ));
-                  },
-                  onClosing: () {},
-                );
               });
         },
         tooltip: 'Current Position',
-        child: const Icon(Icons.location_on),
+        child: const Icon(Icons.add),
       ),
     );
+  }
+
+  _error() {
+    ScaffoldMessenger.of(context)
+        .showSnackBar(const SnackBar(content: Text('Enter a valid data')));
   }
 }
